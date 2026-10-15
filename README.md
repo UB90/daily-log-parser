@@ -197,7 +197,6 @@ complete 4-week example you can copy.
 daily-log export backup.json
 
 # Copy to another system (USB, email, cloud)
-# ...
 
 # Restore on any system
 daily-log import backup.json
@@ -218,5 +217,5 @@ daily-log-parser/
 │   ├── plan.py                 ← plan file helpers
 │   └── week_generator.py       ← date math (no plan data)
 ├── pyproject.toml
-├── README.md
+└── README.md
 ```
