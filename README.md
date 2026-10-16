@@ -236,6 +236,8 @@ daily-log today
 
 ```
 daily-log-parser/
+├── Plans
+│   └──your-plan.json
 ├── src/daily_log_parser/
 │   ├── __init__.py             ← version & package metadata
 │   ├── cli.py                  ← CLI commands and Rich terminal presentation
