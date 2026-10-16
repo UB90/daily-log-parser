@@ -32,3 +32,4 @@ plans/my-*
 backups/
 plan.json
 *.local.json
+.active_plan

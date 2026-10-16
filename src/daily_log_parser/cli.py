@@ -1,16 +1,18 @@
 #!/usr/bin/env python3
 """daily-log CLI: every command lives here.
 
-The code is a pure handler. It reads plan.json, shows things, edits things,
-and saves immediately. Zero plan data is hardcoded - anything you see on
-screen (tasks, festivals, timetables) comes from the plan file.
+The code is a pure handler. It reads your plan file from the Plans folder,
+shows things, edits things, and saves immediately in-place with atomic writes.
+Zero plan data is hardcoded - anything you see on screen comes from the plan file.
 """
 
 from __future__ import annotations
 
 import argparse
 import datetime as dt
+import json
 import os
+from pathlib import Path
 import subprocess
 import sys
 from typing import List, Optional
@@ -278,31 +280,45 @@ def auto_advance(plan: dict, today: Optional[dt.date] = None) -> List[str]:
 # ------------------------------------------------------------ commands
 
 def cmd_init(args) -> int:
-    if S.is_initialized() and not args.force:
-        UI.err("A plan already exists at " + str(S.plan_path()))
-        UI.hint("Use 'daily-log init --force' to overwrite (progress is lost),")
-        UI.hint("or 'daily-log plan reset' to start an empty plan.")
-        return 1
+    plans_dir = S.plan_dir()
+    existing = S.list_plan_files()
     if args.plan:
-        # Bring your own plan file - the package never bundles one.
-        source = os.path.expanduser(str(args.plan))
-        if not os.path.isfile(source):
-            UI.err("Plan file not found: " + source)
+        try:
+            source = S.resolve_plan_path(args.plan)
+        except ValueError as e:
+            UI.err(str(e))
+            UI.hint(f"To import a plan into {plans_dir.name}/, run:  daily-log import {args.plan}")
             return 1
-        S.copy_plan_file(source, S.plan_path())
+        if not source.is_file():
+            UI.err("Plan file not found: " + str(source))
+            return 1
+        S.set_active_plan(source)
     else:
-        # No bundled default: build a generic, empty starter in memory.
-        # Zero plan data is shipped inside the package.
-        today = dt.date.today()
-        monday = today - dt.timedelta(days=today.weekday())  # week starts Monday
-        starter = empty_plan("My Plan")
-        starter["start_date"] = wg.fmt_date(monday)
-        starter["total_weeks"] = 1
-        starter["current_week"] = "W1"
-        starter["weeks"]["W1"] = empty_week(
-            1, wg.fmt_date(monday), wg.fmt_date(monday + dt.timedelta(days=6))
-        )
-        S.save_plan(starter)
+        if existing and not args.force:
+            active = S.get_active_plan_name()
+            if active:
+                UI.err("Active plan already set to " + str(S.plan_path()))
+                UI.hint("To switch plan:  daily-log plan select")
+                UI.hint("To overwrite:    daily-log init --force")
+                return 1
+            if len(existing) == 1:
+                S.set_active_plan(existing[0])
+            else:
+                S.select_plan_interactively(existing)
+        else:
+            today = dt.date.today()
+            monday = today - dt.timedelta(days=today.weekday())
+            starter = empty_plan("My Plan")
+            starter["start_date"] = wg.fmt_date(monday)
+            starter["total_weeks"] = 1
+            starter["current_week"] = "W1"
+            starter["weeks"]["W1"] = empty_week(
+                1, wg.fmt_date(monday), wg.fmt_date(monday + dt.timedelta(days=6))
+            )
+            plans_dir.mkdir(parents=True, exist_ok=True)
+            target = plans_dir / S.PLAN_FILENAME
+            S.save_plan(starter, target_path=target)
+
     plan = S.load_plan()
     total_tasks = sum(len(w.get("tasks", [])) for w in plan.get("weeks", {}).values())
     UI.panel(
@@ -321,10 +337,9 @@ def cmd_init(args) -> int:
         title="Plan initialized",
         style="green",
     )
-    if not args.plan:
+    if not args.plan and not existing:
         UI.hint("This is an empty starter plan - it contains no data.")
         UI.hint("Add a task:       daily-log add \"Read 20 pages\" --type learn")
-        UI.hint("Load a plan file: daily-log init --force --plan <your-plan.json>")
     else:
         UI.hint("Show tasks: daily-log week   |   Log the day: daily-log log 4.2 4")
     return 0
@@ -845,8 +860,53 @@ def cmd_carryover(args) -> int:
 # ---------------------------------------------------------- plan commands
 
 def cmd_plan(args) -> int:
-    plan = S.require_plan()
     sub = args.plan_cmd
+    if sub == "list":
+        files = S.list_plan_files()
+        if not files:
+            UI.hint("No plan files found in " + str(S.plan_dir()))
+            return 0
+        active = S.get_active_plan_name()
+        lines = []
+        for f in files:
+            is_act = (f.name == active)
+            prefix = "* " if is_act else "  "
+            desc = ""
+            try:
+                with open(f, "r", encoding="utf-8") as fh:
+                    meta = json.load(fh)
+                    pname = meta.get("name", "")
+                    wcount = len(meta.get("weeks", {}))
+                    desc = f" ({pname}, {wcount} weeks)" if pname else f" ({wcount} weeks)"
+            except Exception:
+                pass
+            tag = " [active]" if is_act else ""
+            lines.append(f"{prefix}{f.name}{desc}{tag}")
+        UI.panel(lines, title="Plans in " + S.plan_dir().name, style="cyan")
+        return 0
+    if sub == "select":
+        files = S.list_plan_files()
+        if not files:
+            UI.err("No plan files found in " + str(S.plan_dir()))
+            return 1
+        if args.name:
+            try:
+                target = S.resolve_plan_path(args.name)
+            except ValueError as e:
+                UI.err(str(e))
+                return 1
+            if not target.is_file():
+                UI.err("Plan file not found: " + str(target))
+                return 1
+            S.set_active_plan(target)
+            UI.ok("Active plan set to: " + target.name)
+            return 0
+        else:
+            selected = S.select_plan_interactively(files)
+            UI.ok("Active plan set to: " + selected.name)
+            return 0
+
+    plan = S.require_plan()
     if sub == "show":
         total_tasks = sum(len(w.get("tasks", [])) for w in plan.get("weeks", {}).values())
         done_tasks = sum(1 for w in plan.get("weeks", {}).values()
@@ -891,34 +951,58 @@ def cmd_plan(args) -> int:
         blank = empty_plan(str(plan.get("name", "My Plan")))
         S.save_plan(blank)
         UI.ok("Plan reset to an empty skeleton.")
-        UI.hint("Bring a real plan back:  daily-log init --force --plan <your-plan.json>")
-        return 0
-    if sub == "export":
-        S.copy_plan_file(S.plan_path(), os.path.expanduser(args.path))
-        UI.ok("Exported to " + str(args.path))
-        return 0
-    if sub == "import":
-        S.copy_plan_file(os.path.expanduser(args.path), S.plan_path())
-        S.load_plan()  # validate
-        plan = S.load_plan()
-        UI.ok("Imported plan: " + str(plan.get("name", "?")) + " (" +
-              str(P.total_weeks(plan)) + " weeks)")
+        UI.hint("Bring a real plan back:  daily-log init --force --plan Plans/<your-plan.json>")
         return 0
     return 1
 
 
 def cmd_export(args) -> int:
-    S.require_plan()
-    S.copy_plan_file(S.plan_path(), os.path.expanduser(args.path))
-    UI.ok("Backup written to " + str(args.path))
+    plan = S.require_plan()
+    active_path = S.plan_path()
+    dest = Path(os.path.expanduser(args.path))
+    if dest.is_dir():
+        dest = dest / active_path.name
+    dest.parent.mkdir(parents=True, exist_ok=True)
+    dest.write_bytes(active_path.read_bytes())
+    total_tasks = sum(len(w.get("tasks", [])) for w in plan.get("weeks", {}).values())
+    done_tasks = sum(1 for w in plan.get("weeks", {}).values()
+                     for t in w.get("tasks", []) if t.get("done"))
+    UI.ok(f"Exported plan with current progress ({done_tasks}/{total_tasks} tasks done) to {dest}")
     return 0
 
 
 def cmd_import(args) -> int:
-    S.copy_plan_file(os.path.expanduser(args.path), S.plan_path())
-    plan = S.load_plan()
-    UI.ok("Restored plan: " + str(plan.get("name", "?")) + " (" +
-          str(P.total_weeks(plan)) + " weeks) - all progress preserved")
+    src = Path(os.path.expanduser(args.path))
+    if not src.is_file():
+        UI.err("File not found: " + str(src))
+        return 1
+    try:
+        with open(src, "r", encoding="utf-8") as fh:
+            data = json.load(fh)
+        if not isinstance(data, dict) or "weeks" not in data:
+            UI.err(f"'{src.name}' does not look like a plan file (missing 'weeks').")
+            return 1
+    except Exception as exc:
+        UI.err(f"Failed to parse '{src}': {exc}")
+        return 1
+
+    plans_dir = S.plan_dir()
+    plans_dir.mkdir(parents=True, exist_ok=True)
+    dest = plans_dir / src.name
+    if dest.is_file() and not getattr(args, "force", False):
+        UI.err(f"A plan named '{dest.name}' already exists in {plans_dir.name}/.")
+        UI.hint("Use 'daily-log import --force <path>' to overwrite, or rename the source file.")
+        return 1
+
+    dest.write_bytes(src.read_bytes())
+    S.set_active_plan(dest)
+    plan = S.load_plan(dest)
+    total_tasks = sum(len(w.get("tasks", [])) for w in plan.get("weeks", {}).values())
+    done_tasks = sum(1 for w in plan.get("weeks", {}).values()
+                     for t in w.get("tasks", []) if t.get("done"))
+    UI.ok(f"Imported '{src.name}' into {plans_dir.name}/ ({P.total_weeks(plan)} weeks, {done_tasks}/{total_tasks} tasks done).")
+    UI.ok(f"Active plan set to: {dest.name}")
+    UI.hint("Show tasks: daily-log week   |   Show today: daily-log today")
     return 0
 
 
@@ -1003,8 +1087,8 @@ def build_parser() -> argparse.ArgumentParser:
                    version="daily-log " + PKG_VERSION)
     sub = p.add_subparsers(dest="cmd", metavar="<command>")
 
-    sp = sub.add_parser("init", help="initialize ~/.daily-log/plan.json")
-    sp.add_argument("--plan", help="path to a plan JSON file")
+    sp = sub.add_parser("init", help="initialize plan in Plans folder")
+    sp.add_argument("--plan", help="path to a plan JSON file (must be in Plans folder)")
     sp.add_argument("--force", action="store_true", help="overwrite an existing plan")
     sp.set_defaults(func=cmd_init)
 
@@ -1074,20 +1158,20 @@ def build_parser() -> argparse.ArgumentParser:
     psub.add_parser("show", help="show plan summary")
     psub.add_parser("edit", help="open in $EDITOR")
     psub.add_parser("path", help="print file path")
+    psub.add_parser("list", help="list plans in Plans folder")
+    sp_sel = psub.add_parser("select", help="select active plan in Plans folder")
+    sp_sel.add_argument("name", nargs="?", default=None, help="plan filename in Plans/")
     sp_reset = psub.add_parser("reset", help="reset to empty plan")
     sp_reset.add_argument("--yes", action="store_true", help="skip confirmation")
-    sp_exp = psub.add_parser("export", help="export plan to a file")
-    sp_exp.add_argument("path")
-    sp_imp = psub.add_parser("import", help="import a plan from a file")
-    sp_imp.add_argument("path")
     sp.set_defaults(func=cmd_plan)
 
-    sp = sub.add_parser("export", help="backup plan file")
-    sp.add_argument("path")
+    sp = sub.add_parser("export", help="copy active plan (including progress) to given path")
+    sp.add_argument("path", help="destination file path or directory")
     sp.set_defaults(func=cmd_export)
 
-    sp = sub.add_parser("import", help="restore from backup")
-    sp.add_argument("path")
+    sp = sub.add_parser("import", help="import a plan into Plans/ and activate it")
+    sp.add_argument("path", help="source plan JSON file to import")
+    sp.add_argument("--force", action="store_true", help="overwrite existing plan in Plans/ if same name")
     sp.set_defaults(func=cmd_import)
 
     sp = sub.add_parser("list-weeks", help="list all weeks")

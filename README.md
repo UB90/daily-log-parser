@@ -3,13 +3,13 @@
 A fast, CLI plan tracker. **One file. File-driven. Offline.**
 
 [![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
-[![Version](https://img.shields.io/badge/version-1.0.1-green.svg)](pyproject.toml)
+[![Version](https://img.shields.io/badge/version-1.1.0-green.svg)](pyproject.toml)
 
-All plan data (tasks, day-types, festivals, timetables, and daily logs) lives in a single JSON file of **yours**. The application is a pure handler: it reads your file, modifies it with atomic writes, and displays clean terminal UI via Rich. No external databases, no telemetry, no cloud lock-in.
+All plan data (tasks, day-types, festivals, timetables, and daily logs) lives in a single JSON file of **yours** inside the `Plans/` directory. The application directly reads and modifies your plan file in-place with atomic writes, and displays clean terminal UI via Rich. No external databases, no telemetry, no cloud lock-in.
 
 ```
-~/.daily-log/
-└── plan.json    ← EVERYTHING: tasks + completion state + daily logs + overrides
+Plans/
+└── your-plan.json    ← EVERYTHING: tasks + completion state + daily logs + overrides
 ```
 
 ---
@@ -39,20 +39,20 @@ uv tool install .
 pip install -e ".[dev]"
 ```
 
-> **Tip:** Set the `DAILY_LOG_DIR` environment variable to store `plan.json` in a custom location instead of `~/.daily-log`.
+> **Tip:** Plan files can only be located in the `Plans/` directory. Set `DAILY_LOG_DIR` to point to a custom `Plans/` folder if needed.
 
 ---
 
 ## Quick Start
 
-### 1. Initialize your plan
+### 1. Initialize or select your plan
 
 ```bash
-# Option A: Start from a clean starter plan template
+# Option A: Auto-detect existing plan or prompt to select if multiple exist in Plans/
 daily-log init
 
-# Option B: Load your existing plan JSON file
-daily-log init --plan /path/to/your-plan.json
+# Option B: Select an existing plan in Plans/
+daily-log init --plan Plans/your-plan.json
 ```
 
 ### 2. Daily Workflow
@@ -61,7 +61,7 @@ daily-log init --plan /path/to/your-plan.json
 # Morning: check today's tasks and routine timetable
 daily-log today
 
-# Mark a task complete (instantly saved to plan.json)
+# Mark a task complete (instantly saved directly into your plan file)
 daily-log mark w1-mon-1
 
 # Flip between done / not-done
@@ -87,11 +87,11 @@ daily-log done
 
 | Command | Action | Saves File |
 | :--- | :--- | :---: |
-| `daily-log init [--plan <path>] [--force]` | Initialize new plan or load from file | ✓ |
+| `daily-log init [--plan <path>] [--force]` | Initialize or set active plan in Plans folder | ✓ |
 | `daily-log today` | Show today's tasks, schedule timetable & day-type | — |
 | `daily-log week [--week W1]` | Show full week view broken down by day | — |
-| `daily-log mark <task-id>` | Mark task as completed | ✓ |
-| `daily-log unmark <task-id>` | Mark task as incomplete | ✓ |
+| `daily-log mark <task-id>` | Mark task as completed (in-place) | ✓ |
+| `daily-log unmark <task-id>` | Mark task as incomplete (in-place) | ✓ |
 | `daily-log toggle <task-id>` | Toggle task done/undone | ✓ |
 | `daily-log add "<text>" [--day Mon] [--type ship]` | Add a new task to current week | ✓ |
 | `daily-log delete <task-id>` | Delete a custom task | ✓ |
@@ -104,11 +104,13 @@ daily-log done
 | `daily-log set-week Wn` | Jump directly to a specific week | ✓ |
 | `daily-log carryover [from] [to] [--dry-run]` | Carry incomplete tasks forward manually | ✓ |
 | `daily-log plan show` | Display plan metadata, version, and totals | — |
-| `daily-log plan edit` | Open `plan.json` directly in your `$EDITOR` | — |
-| `daily-log plan path` | Print filesystem path to active `plan.json` | — |
+| `daily-log plan edit` | Open active plan file directly in your `$EDITOR` | — |
+| `daily-log plan path` | Print filesystem path to active plan file | — |
+| `daily-log plan list` | List all plan files in Plans folder | — |
+| `daily-log plan select [name]` | Select active plan (prompts if multiple exist) | ✓ |
 | `daily-log plan reset [--yes]` | Reset plan to an empty starter skeleton | ✓ |
-| `daily-log export <path>` | Backup plan file or write into a target directory | — |
-| `daily-log import <path>` | Restore plan from backup file | ✓ |
+| `daily-log export <path>` | Copy active plan (with current progress) to a file or directory | — |
+| `daily-log import <path> [--force]` | Import external plan JSON into Plans/ and activate it | ✓ |
 | `daily-log list-weeks` | List all weeks with start and end dates | — |
 | `daily-log list-day-types` | List all registered day types and routines | — |
 | `daily-log show-day <type>` | View detailed daily schedule for a day type | — |
@@ -206,14 +208,17 @@ Your plan is simply a JSON file. Minimal valid example:
 
 Your data is 100% portable:
 ```bash
-# Backup to a file or directory
+# Export your active plan (including all completed tasks and progress) to any path:
 daily-log export ~/backups/
-daily-log export ~/backups/plan-backup.json
+daily-log export ~/backups/my-completed-checkpoint.json
 
-# Restore on any computer
-daily-log import ~/backups/plan-backup.json
+# Import an external plan JSON file into Plans/ and immediately activate it:
+daily-log import ~/Downloads/new-semester-plan.json
 
-# Verify state
+# If a plan with the same name already exists in Plans/, overwrite with --force:
+daily-log import --force ~/backups/my-completed-checkpoint.json
+
+# Check current state:
 daily-log today
 ```
 
@@ -221,14 +226,22 @@ daily-log today
 
 ## Version History
 
+### v1.1.0
+- **Direct In-Place Plan Editing:** Plan files in the `Plans/` directory are directly and atomically modified on disk; no hidden or duplicate copies in home directories.
+- **Plans Folder Enforcement:** Enforced that all plan files must reside exclusively in the `Plans/` directory, keeping projects self-contained and clean.
+- **Seamless Plan Import & Export:** `daily-log import <path>` copies any external plan into `Plans/` and activates it immediately; `daily-log export <path>` copies your active plan (including all completed tasks and daily logs) to any destination.
+- **Removed Duplicate Commands:** Eliminated redundant subcommands (`daily-log plan export` / `daily-log plan import`) in favor of unified top-level commands.
+- **Interactive Multi-Plan Selection:** Auto-detects single plan files and provides an interactive terminal menu when multiple plans exist in `Plans/`.
+- **Plan Management Commands:** Added `daily-log plan list` to view all plans and `daily-log plan select` to switch active plans.
+- **Automated Test Suite:** Comprehensive test suite with pytest covering storage resolution, in-place writes, export/import lifecycles, and CLI commands.
+
 ### v1.0.1
-- **Directory Export Fix:** `daily-log export` and `daily-log plan export` automatically append `plan.json` when targeting a directory, preventing `IsADirectoryError`.
+- **Directory Export Fix:** `daily-log export` automatically appends `plan.json` when targeting a directory, preventing `IsADirectoryError`.
 - **Intra-Week Task Rollover:** `daily-log sync` carries forward uncompleted non-habit tasks from earlier days of the week to today.
 - **Visual Moved Indicators:** Tasks shifted across days or weeks clearly display origin badges like `(moved from Mon)` and `(carried from W1)` in `today` and `week` views.
 
-
 ### v1.0.0
-- Initial featuring atomic JSON storage, custom routine day-types, interactive daily metric logging, and weekly scorecard tracking.
+- Initial release featuring atomic JSON storage, custom routine day-types, interactive daily metric logging, and weekly scorecard tracking.
 
 ---
 
@@ -241,10 +254,11 @@ daily-log-parser/
 ├── src/daily_log_parser/
 │   ├── __init__.py             ← version & package metadata
 │   ├── cli.py                  ← CLI commands and Rich terminal presentation
-│   ├── storage.py              ← atomic read/write for plan.json
+│   ├── storage.py              ← in-place atomic storage & plan selection in Plans/
 │   ├── routine.py              ← fallback structures & timetable rendering
 │   ├── plan.py                 ← plan inspection, carryovers & task manipulation
 │   └── week_generator.py       ← calendar date math
+├── tests/                      ← automated test suite (pytest)
 ├── pyproject.toml              ← package configuration & dependencies
 └── README.md
 ```
