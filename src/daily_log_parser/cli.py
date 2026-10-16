@@ -238,6 +238,8 @@ def task_line(plan: dict, task: dict) -> list:
     ]
     if task.get("carried_over_from"):
         row.append((" (carried from " + str(task["carried_over_from"]) + ")", "yellow"))
+    if task.get("carried_over_from_day"):
+        row.append((" (moved from " + str(task["carried_over_from_day"]) + ")", "yellow"))
     if task.get("done") and task.get("completed_on"):
         row.append((" done " + str(task["completed_on"]), "bright_black"))
     return row
@@ -622,13 +624,21 @@ def cmd_sync(args) -> int:
     today = dt.date.today()
     notices = auto_advance(plan)
     marked = P.auto_mark_daily_log(plan, P.current_week(plan), today)
-    if notices or marked:
+    day_moved = P.carry_over_day(plan, P.current_week(plan), today)
+    if notices or marked or day_moved:
         S.save_plan(plan)
     for n in notices:
         UI.line(n, style="yellow")
     if marked:
         UI.ok("Daily-log task auto-marked for today (a log exists).")
-    if not notices and not marked:
+    if day_moved:
+        UI.ok("Moved {} remaining task(s) from earlier day(s) to today.".format(len(day_moved)))
+        for t in day_moved[:8]:
+            UI.hint("  - [" + str(t.get("id")) + "] " + str(t.get("task")) +
+                    " (was " + str(t.get("carried_over_from_day", "?")) + ")")
+        if len(day_moved) > 8:
+            UI.hint("  ... and " + str(len(day_moved) - 8) + " more")
+    if not notices and not marked and not day_moved:
         UI.ok("Everything already in sync - you are in " + P.current_week(plan) + ".")
     return 0
 

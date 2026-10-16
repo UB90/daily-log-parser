@@ -86,10 +86,16 @@ def save_plan(plan: dict) -> None:
 
 
 def copy_plan_file(src: str | Path, dest: str | Path) -> None:
-    """Copy a plan file (used by init / export / import)."""
+    """Copy a plan file (used by init / export / import).
+
+    If *dest* is an existing directory, the file is placed inside it
+    with the same name as the source file.
+    """
     src = Path(src)
     if not src.is_file():
         raise SystemExit("File not found: " + str(src))
     dest = Path(dest)
+    if dest.is_dir():
+        dest = dest / src.name
     dest.parent.mkdir(parents=True, exist_ok=True)
     dest.write_bytes(src.read_bytes())

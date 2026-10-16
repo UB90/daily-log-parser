@@ -292,6 +292,42 @@ def auto_mark_daily_log(plan: dict, week: str, date: dt.date) -> bool:
     return False
 
 
+def carry_over_day(plan: dict, week: str, today: dt.date) -> list:
+    """Move incomplete non-habit tasks from earlier days in the same week to today.
+
+    Each moved task's day/date fields are updated to today and a
+    ``carried_over_from_day`` tag records the original day abbreviation.
+    Returns the list of tasks that were updated.
+    """
+    w = plan.get("weeks", {}).get(week)
+    if not w:
+        return []
+    today_abbrev = wg.date_to_day_abbrev(today)
+    today_idx = DAY_ABBREVS.index(today_abbrev)
+    today_iso = wg.fmt_date(today)
+    moved = []
+    for task in w.get("tasks", []):
+        if task.get("done"):
+            continue
+        if task.get("type") in HABIT_TYPES:
+            continue
+        task_day = str(task.get("day", "")).lower()[:3]
+        if task_day not in DAY_ABBREVS:
+            continue
+        task_idx = DAY_ABBREVS.index(task_day)
+        if task_idx >= today_idx:
+            continue
+        # This task is from an earlier day and still not done - move to today
+        old_day = task_day
+        task["carried_over_from_day"] = old_day.capitalize()
+        task["day"] = today_abbrev.capitalize()
+        task["date"] = today_iso
+        # Regenerate an id that reflects the new day
+        task["id"] = next_task_id(plan, week, today_abbrev)
+        moved.append(task)
+    return moved
+
+
 def parse_log_args(
     dw_hours=None, mood=None, bedtime=None, protein=None
 ) -> dict:

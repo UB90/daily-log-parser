@@ -1,0 +1,34 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.eggs/
+build/
+dist/
+.venv/
+venv/
+
+# Testing
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Editors
+.idea/
+.vscode/
+*.swp
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Personal plan data (never commit a real plan or its backups)
+Plans/
+my-*.json
+*.private.json
+plans/private-*
+plans/my-*
+*.bak
+backups/
+plan.json
+*.local.json
