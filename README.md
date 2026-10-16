@@ -1,6 +1,6 @@
 # daily-log-parser
 
-A fast, privacy-first CLI plan tracker. **One file. File-driven. Offline.**
+A fast, CLI plan tracker. **One file. File-driven. Offline.**
 
 [![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
 [![Version](https://img.shields.io/badge/version-1.0.1-green.svg)](pyproject.toml)
