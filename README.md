@@ -132,10 +132,9 @@ daily-log log 4.2 4 22:30 y      # Deep work + mood + bedtime + hit protein targ
 ### Automated Flow
 1. **Intra-Week Task Rollover (`sync`)** — Incomplete non-habit tasks from earlier days automatically roll over to today and display a helpful `(moved from <Day>)` indicator.
 2. **Auto-Detect Week** — Detects current week from system date so you never need to manually switch weeks.
-3. **Cross-Week Carryover (`done`)** — Unfinished weekly tasks advance to the next week tagged with `(carried from W<n>)`.
-4. **Auto-Festivals & Overrides** — Dates declared in `festival_dates` automatically trigger holiday timetables and day types.
-5. **Auto-Mark on Log** — Saving your end-of-day log automatically checks off the daily "Daily log" task.
-6. **Habit Protection** — Habit tasks (`anki`, `log`) stay anchored to their day and are never rolled over.
+3. **Cross-Week Carryover (`done`)** — Unfinished weekly/daily tasks advance to the next week/day tagged with `(carried from W<n>)`.
+4. **Auto-Mark on Log** — Saving your end-of-day log automatically checks off the daily "Daily log" task.
+5. **Habit Protection** — Habit tasks (`anki`, `log`) stay anchored to their day and are never rolled over.
 
 ---
 
