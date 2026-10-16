@@ -4,7 +4,6 @@ A fast, privacy-first CLI plan tracker. **One file. File-driven. Offline.**
 
 [![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
 [![Version](https://img.shields.io/badge/version-1.0.1-green.svg)](pyproject.toml)
-[![Offline](https://img.shields.io/badge/network-100%25%20offline-success.svg)](#portability)
 
 All plan data (tasks, day-types, festivals, timetables, and daily logs) lives in a single JSON file of **yours**. The application is a pure handler: it reads your file, modifies it with atomic writes, and displays clean terminal UI via Rich. No external databases, no telemetry, no cloud lock-in.
 
@@ -226,10 +225,10 @@ daily-log today
 - **Directory Export Fix:** `daily-log export` and `daily-log plan export` automatically append `plan.json` when targeting a directory, preventing `IsADirectoryError`.
 - **Intra-Week Task Rollover:** `daily-log sync` carries forward uncompleted non-habit tasks from earlier days of the week to today.
 - **Visual Moved Indicators:** Tasks shifted across days or weeks clearly display origin badges like `(moved from Mon)` and `(carried from W1)` in `today` and `week` views.
-- **Plan Privacy Protection:** Enhanced `.gitignore` rules prevent private plan files, backups, and local plan directories from accidental commits.
+
 
 ### v1.0.0
-- Initial public release featuring atomic JSON storage, custom routine day-types, interactive daily metric logging, and weekly scorecard tracking.
+- Initial featuring atomic JSON storage, custom routine day-types, interactive daily metric logging, and weekly scorecard tracking.
 
 ---
 
