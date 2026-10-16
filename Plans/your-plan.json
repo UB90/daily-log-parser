@@ -1,0 +1,56 @@
+{
+  "version": "1.0",
+  "name": "My Learning Plan",
+  "total_weeks": 12,
+  "start_date": "2026-01-05",
+  "current_week": "W1",
+  "college_start_week": "W6",
+  "day_types": {
+    "WORK": {
+      "name": "Work Day",
+      "wake": "08:00",
+      "dw_hours": 6.0,
+      "exercise": "30-min walk",
+      "color": "green",
+      "schedule": [["08:00", "Wake"], ["09:00-12:00", "Deep work"]]
+    },
+    "OFF": {
+      "name": "Rest Day",
+      "wake": "09:00",
+      "dw_hours": 0.0,
+      "exercise": "Rest"
+    }
+  },
+  "festival_dates": {},
+  "default_day_types_w1_w5": { "monday": "WORK", "saturday": "OFF", "sunday": "OFF" },
+  "default_day_types_college": { "monday": "WORK", "saturday": "OFF", "sunday": "OFF" },
+  "task_type_meta": {
+    "ship":  {"label": "Ship",  "color": "green",   "icon": "◆"},
+    "learn": {"label": "Learn", "color": "cyan",    "icon": "◇"},
+    "anki":  {"label": "Anki",  "color": "magenta", "icon": "▣"},
+    "log":   {"label": "Log",   "color": "white",   "icon": "▸"},
+    "gate":  {"label": "Gate",  "color": "red",     "icon": "⚑"}
+  },
+  "weekly_scorecard": [
+    {"key": "dw_hours", "label": "DW hours", "target": ">= 12 h"}
+  ],
+  "daily_log_fields": [
+    {"key": "dw_hours", "label": "DW hours", "type": "float"},
+    {"key": "mood", "label": "Mood (1-5)", "type": "int"}
+  ],
+  "date_overrides": {},
+  "weeks": {
+    "W1": {
+      "label": "W1 - Kickoff",
+      "phase": "Stage 1",
+      "ship_target": "Initial deliverable",
+      "start_date": "2026-01-05",
+      "end_date": "2026-01-11",
+      "tasks": [
+        {"id": "w1-mon-1", "day": "Mon", "date": "2026-01-05", "task": "Configure project", "type": "ship", "done": false},
+        {"id": "w1-mon-2", "day": "Mon", "date": "2026-01-05", "task": "Daily log", "type": "log", "done": false}
+      ],
+      "logs": {}
+    }
+  }
+}
