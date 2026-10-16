@@ -5,4 +5,4 @@ JSON file. This package is a pure handler: it reads the file, modifies it,
 saves it. No plan data is hardcoded in Python.
 """
 
-__version__ = "1.0.0"
+__version__ = "1.0.1"
